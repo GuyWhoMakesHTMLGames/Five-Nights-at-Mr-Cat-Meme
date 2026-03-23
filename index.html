@@ -6,11 +6,65 @@
     <title>Unity Web Player | FNAMP</title>
     <link rel="shortcut icon" href="TemplateData/favicon.ico">
     <link rel="stylesheet" href="TemplateData/style.css">
+    <style>
+      #api-selector {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(30, 30, 30, 0.95);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 20;
+        color: white;
+        font-family: sans-serif;
+      }
+      .selector-title {
+        margin-bottom: 20px;
+        font-size: 24px;
+        font-weight: bold;
+      }
+      .btn-container {
+        display: flex;
+        gap: 20px;
+      }
+      .api-btn {
+        padding: 15px 30px;
+        font-size: 18px;
+        cursor: pointer;
+        border: none;
+        border-radius: 8px;
+        transition: transform 0.1s, background 0.2s;
+        background: #444;
+        color: white;
+      }
+      .api-btn:hover {
+        background: #666;
+        transform: scale(1.05);
+      }
+      .webgpu-btn {
+        background: #0078d4;
+      }
+      .webgpu-btn:hover {
+        background: #0086ed;
+      }
+    </style>
   </head>
   <body>
     <div id="unity-container" class="unity-desktop">
+      <div id="api-selector">
+        <div class="selector-title">Select Graphics Mode</div>
+        <div class="btn-container">
+          <button class="api-btn webgpu-btn" onclick="startUnity('webgpu')">WebGPU (Experimental/Fast)</button>
+          <button class="api-btn" onclick="startUnity('webgl2')">WebGL 2.0 (Stable)</button>
+        </div>
+      </div>
+
       <canvas id="unity-canvas" width=960 height=600 tabindex="-1"></canvas>
-      <div id="unity-loading-bar">
+      <div id="unity-loading-bar" style="display:none;">
         <div id="unity-logo"></div>
         <div id="unity-progress-bar-empty">
           <div id="unity-progress-bar-full"></div>
@@ -26,12 +80,6 @@
     <script>
       var canvas = document.querySelector("#unity-canvas");
 
-      // Shows a temporary message banner/ribbon for a few seconds, or
-      // a permanent error message on top of the canvas if type=='error'.
-      // If type=='warning', a yellow highlight color is used.
-      // Modify or remove this function to customize the visually presented
-      // way that non-critical warnings and error messages are presented to the
-      // user.
       function unityShowBanner(msg, type) {
         var warningBanner = document.querySelector("#unity-warning");
         function updateBannerVisibility() {
@@ -51,83 +99,54 @@
         updateBannerVisibility();
       }
 
-      var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/FNAMP 0.4.1.loader.js";
-      var config = {
-        arguments: [],
-        dataUrl: buildUrl + "/FNAMP 0.4.1.data",
-        frameworkUrl: buildUrl + "/FNAMP 0.4.1.framework.js",
-        codeUrl: buildUrl + "/FNAMP 0.4.1.wasm",
-        streamingAssetsUrl: "StreamingAssets",
-        companyName: "LakenEnglish",
-        productName: "FNAMP",
-        productVersion: "0.4.1",
-        showBanner: unityShowBanner,
-        // errorHandler: function(err, url, line) {
-        //    alert("error " + err + " occurred at line " + line);
-        //    // Return 'true' if you handled this error and don't want Unity
-        //    // to process it further, 'false' otherwise.
-        //    return true;
-        // },
-      };
+      function startUnity(apiType) {
+        document.querySelector("#api-selector").style.display = "none";
+        document.querySelector("#unity-loading-bar").style.display = "block";
 
-      // By default, Unity keeps WebGL canvas render target size matched with
-      // the DOM size of the canvas element (scaled by window.devicePixelRatio)
-      // Set this to false if you want to decouple this synchronization from
-      // happening inside the engine, and you would instead like to size up
-      // the canvas DOM size and WebGL render target sizes yourself.
-      // config.matchWebGLToCanvasSize = false;
+        var buildUrl = "Build";
+        var loaderUrl = buildUrl + "/FNAMP 0.4.1.loader.js";
+        var config = {
+          arguments: [],
+          dataUrl: buildUrl + "/FNAMP 0.4.1.data",
+          frameworkUrl: buildUrl + "/FNAMP 0.4.1.framework.js",
+          codeUrl: buildUrl + "/FNAMP 0.4.1.wasm",
+          streamingAssetsUrl: "StreamingAssets",
+          companyName: "LakenEnglish",
+          productName: "FNAMP",
+          productVersion: "0.4.1",
+          showBanner: unityShowBanner,
+          webgpuContextOptions: apiType === 'webgpu' ? { powerPreference: "high-performance" } : undefined,
+          graphicsAPI: apiType === 'webgpu' ? ["webgpu"] : ["webgl2"]
+        };
 
-      // If you would like all file writes inside Unity Application.persistentDataPath
-      // directory to automatically persist so that the contents are remembered when
-      // the user revisits the site the next time, uncomment the following line:
-      // config.autoSyncPersistentDataPath = true;
-      // This autosyncing is currently not the default behavior to avoid regressing
-      // existing user projects that might rely on the earlier manual
-      // JS_FileSystem_Sync() behavior, but in future Unity version, this will be
-      // expected to change.
+        if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+          var meta = document.createElement('meta');
+          meta.name = 'viewport';
+          meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+          document.getElementsByTagName('head')[0].appendChild(meta);
+          document.querySelector("#unity-container").className = "unity-mobile";
+          canvas.className = "unity-mobile";
+        } else {
+          canvas.style.width = "960px";
+          canvas.style.height = "600px";
+        }
 
-      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        // Mobile device style: fill the whole browser client area with the game canvas:
-
-        var meta = document.createElement('meta');
-        meta.name = 'viewport';
-        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
-        document.getElementsByTagName('head')[0].appendChild(meta);
-        document.querySelector("#unity-container").className = "unity-mobile";
-        canvas.className = "unity-mobile";
-
-        // To lower canvas resolution on mobile devices to gain some
-        // performance, uncomment the following line:
-        // config.devicePixelRatio = 1;
-
-
-      } else {
-        // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
-        canvas.style.width = "960px";
-        canvas.style.height = "600px";
-      }
-
-      document.querySelector("#unity-loading-bar").style.display = "block";
-
-      var script = document.createElement("script");
-      script.src = loaderUrl;
-      script.onload = () => {
-        createUnityInstance(canvas, config, (progress) => {
-          document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
-              }).then((unityInstance) => {
-                document.querySelector("#unity-loading-bar").style.display = "none";
-                document.querySelector("#unity-fullscreen-button").onclick = () => {
-                  unityInstance.SetFullscreen(1);
-                };
-
-              }).catch((message) => {
-                alert(message);
-              });
+        var script = document.createElement("script");
+        script.src = loaderUrl;
+        script.onload = () => {
+          createUnityInstance(canvas, config, (progress) => {
+            document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
+          }).then((unityInstance) => {
+            document.querySelector("#unity-loading-bar").style.display = "none";
+            document.querySelector("#unity-fullscreen-button").onclick = () => {
+              unityInstance.SetFullscreen(1);
             };
-
-      document.body.appendChild(script);
-
+          }).catch((message) => {
+            alert(message);
+          });
+        };
+        document.body.appendChild(script);
+      }
     </script>
   </body>
 </html>
